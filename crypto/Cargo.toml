@@ -6,35 +6,33 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sha2 = "0.10.6"
+rayon = { version = "1.3" }
+
+# blstrs related dependencies
 blstrs = "0.6.1"
 ff = "0.12.0"
 group = "0.12"
 pairing_lib = { version = "0.22", package = "pairing" }
 
+# Arkworks related dependencies
+# Arkworks is now being used for general helper methods
 ark-ff = { version = "0.3", default-features = false }
-# This dependency is used to get the roots of unity and evaluate lagrange coefficients
-# instead of doing FFTing the SRS
-# We can remove it once we implement those in the lib
 ark-poly = { version = "0.3", default-features = false }
 ark-bls12-381 = { version = "0.3", default-features = false, features = [
     "curve",
 ] }
-ark-ec = { version = "0.3", default-features = false }
-sha2 = "0.10.6"
-rayon = { optional = true, version = "1.3" }
-rand = "0.8.3"
 
 [dev-dependencies]
 hex = "0.4.3"
 rand = "0.8.3"
+criterion = "0.4"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
 
 [features]
 insecure = []
 default = ["parallel"]
-parallel = [
-    "rayon",
-    "ark-ff/parallel",
-    "ark-poly/parallel",
-    "ark-ec/parallel",
-    "ark-ff/asm",
-]
+parallel = ["ark-ff/parallel", "ark-poly/parallel", "ark-ff/asm"]
