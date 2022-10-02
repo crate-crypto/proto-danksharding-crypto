@@ -16,7 +16,7 @@ use crate::{
     g1_lincomb, kzg::transcript::Transcript, polynomial::Polynomial, G1Point, KZGProof,
     RootsOfUnity, Scalar,
 };
-use ark_ff::One;
+use ff::Field;
 
 pub struct AggregatedKZG {
     polys: Vec<Polynomial>,
@@ -147,7 +147,6 @@ fn compute_powers(x: Scalar, n: u64) -> Vec<Scalar> {
 mod tests {
     use super::*;
     use crate::test_utils::{random_polynomial, test_setup};
-    use ark_ff::Field;
 
     #[test]
     fn valid_proof_smoke() {
@@ -185,7 +184,7 @@ mod tests {
         let powers = compute_powers(base, n);
 
         for i in 0..n {
-            assert_eq!(powers[i as usize], base.pow(&[i]));
+            assert_eq!(powers[i as usize], base.pow_vartime(&[i]));
         }
     }
 }

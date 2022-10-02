@@ -1,5 +1,4 @@
 use crate::Scalar;
-use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use std::ops::Index;
 
 #[derive(Debug, Clone)]
@@ -17,11 +16,11 @@ impl RootsOfUnity {
             "size must explicitly be a power of two"
         );
 
-        let domain: Radix2EvaluationDomain<Scalar> = Radix2EvaluationDomain::new(size).unwrap();
+        let (domain, size_inv) = crate::arkworks::generate_domain_parameters(size);
 
         RootsOfUnity {
-            inner: domain.elements().collect(),
-            inverse_domain_size: domain.size_inv,
+            inner: domain,
+            inverse_domain_size: size_inv,
         }
     }
 

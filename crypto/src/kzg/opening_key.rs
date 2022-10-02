@@ -1,10 +1,8 @@
-use ark_bls12_381::{Bls12_381, Parameters};
-use ark_ec::{bls12::G2Prepared as GenericG2Prepared, AffineCurve, PairingEngine};
-use ark_ff::{One, PrimeField};
-
 use crate::{G1Point, G2Point, Scalar};
-
-pub type G2Prepared = GenericG2Prepared<Parameters>;
+use blstrs::G2Prepared;
+use blstrs::*;
+use pairing_lib::group::Group;
+use pairing_lib::{MillerLoopResult, MultiMillerLoop};
 
 /// Opening Key is used to verify opening proofs made about a committed polynomial.
 #[derive(Clone, Debug)]
@@ -46,27 +44,16 @@ impl OpeningKey {
         poly_comm: G1Point,
         witness_comm: G1Point,
     ) -> bool {
-        // TODO: The readability for this is not that great to be honest.
-        //
-        // TODO: This should improve with the newer version of arkworks
-        // TODO: it has not been added yet
-
-        // P - y
-        let inner_a: G1Point =
-            (poly_comm.into_projective() - &(self.g1_gen.mul(output_point.into_repr()))).into();
-
-        // X - z
-        let inner_b: G2Point = (self.tau_g2_gen.into_projective()
-            - &(self.g2_gen.mul(input_point.into_repr())))
-            .into();
-
+        let inner_a: G1Point = (poly_comm - (self.g1_gen * output_point)).into();
+        let inner_b: G2Point = (self.tau_g2_gen - (self.g2_gen * input_point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
 
-        let pairing = Bls12_381::product_of_pairings(&[
-            (inner_a.into(), self.prepared_g2.clone()),
-            (witness_comm.into(), prepared_inner_b.clone()),
-        ]);
+        let pairing = Bls12::multi_miller_loop(&[
+            (&inner_a, &self.prepared_g2),
+            (&witness_comm, &prepared_inner_b),
+        ])
+        .final_exponentiation();
 
-        pairing.is_one()
+        pairing.is_identity().into()
     }
 }

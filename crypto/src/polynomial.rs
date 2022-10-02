@@ -1,5 +1,5 @@
 use crate::{inverse, RootsOfUnity, Scalar};
-use ark_ff::{Field, One, Zero};
+use group::ff::Field;
 use rayon::prelude::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
@@ -83,7 +83,7 @@ impl Polynomial {
             let denominator = inverse(z - domain[i]);
             result += (self.evaluations[i] * domain[i]) * denominator;
         }
-        result * (z.pow(&[domain_size as u64]) - Scalar::one()) * domain.inverse_domain_size
+        result * (z.pow_vartime(&[domain_size as u64]) - Scalar::one()) * domain.inverse_domain_size
     }
 
     // Compute the linear combination between
@@ -159,10 +159,10 @@ fn polynomial_addition(lhs: &Polynomial, rhs: &Polynomial) -> Polynomial {
 
 #[cfg(test)]
 mod tests {
+    use ff::Field;
+
     use super::{Polynomial, Scalar};
     use crate::test_utils::{random_polynomial, random_vector};
-
-    use ark_ff::Zero;
 
     #[test]
     fn matrix_vector_lin_comb() {

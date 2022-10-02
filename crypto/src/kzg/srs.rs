@@ -3,7 +3,6 @@ use super::{
     opening_key::OpeningKey,
 };
 use crate::{G1Point, G2Point, Scalar};
-use ark_ec::{AffineCurve, ProjectiveCurve};
 
 // This is the SRS both in monomial and lagrange form
 //
@@ -16,12 +15,12 @@ pub struct PublicParameters {
 impl PublicParameters {
     #[cfg(any(feature = "insecure", test))]
     pub fn from_secret(tau: u64, num_g1: usize) -> Self {
-        use ark_ff::PrimeField;
+        use group::prime::PrimeCurveAffine;
 
-        let tau = Scalar::from(tau);
-        let g1_gen = G1Point::prime_subgroup_generator();
-        let g2_gen = G2Point::prime_subgroup_generator();
-        let tau_g2_gen = g2_gen.mul(tau.into_repr()).into_affine();
+        let tau_fr = Scalar::from(tau);
+        let g1_gen = G1Point::generator();
+        let g2_gen = G2Point::generator();
+        let tau_g2_gen = (g2_gen * tau_fr).into();
         let powers_of_tau_g1 = Self::compute_lagrange_srs(num_g1, tau, g1_gen);
 
         PublicParameters {
@@ -34,21 +33,13 @@ impl PublicParameters {
 
     #[cfg(any(feature = "insecure", test))]
     // This is an insecure way to generate the lagrange form of the SRS
-    fn compute_lagrange_srs(max_degree: usize, tau: Scalar, g: G1Point) -> Vec<G1Point> {
-        use ark_ff::PrimeField;
-        use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-
-        let domain: GeneralEvaluationDomain<Scalar> =
-            GeneralEvaluationDomain::new(max_degree).unwrap();
-
-        // Evaluate lagrange at the secret scalar `tau`
-        let lagrange_coeffs = domain.evaluate_all_lagrange_coefficients(tau);
-
+    fn compute_lagrange_srs(max_degree: usize, tau: u64, g: G1Point) -> Vec<G1Point> {
+        let lagrange_coeffs = crate::arkworks::evaluate_lagrange_coefficients(max_degree, tau);
         // Commit to each lagrange coefficient
         lagrange_coeffs
             .into_iter()
-            .map(|l_s| g.mul(l_s.into_repr()))
-            .map(|point| point.into_affine())
+            .map(|l_s| g * l_s)
+            .map(|point| point.into())
             .collect()
     }
 

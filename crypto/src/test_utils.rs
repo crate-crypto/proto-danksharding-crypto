@@ -1,21 +1,22 @@
-use crate::{G1Point, Polynomial, PublicParameters, RootsOfUnity, Scalar};
-use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::{PrimeField, UniformRand};
+use std::ops::Mul;
+
+use ff::Field;
+use group::prime::PrimeCurveAffine;
+
+use crate::{polynomial::Polynomial, G1Point, PublicParameters, RootsOfUnity, Scalar};
 
 pub fn random_polynomial(length: usize) -> Polynomial {
     Polynomial::new(random_vector(length))
 }
 pub fn random_vector(length: usize) -> Vec<Scalar> {
     (0..length)
-        .map(|_| Scalar::rand(&mut rand::thread_rng()))
+        .map(|_| Scalar::random(&mut rand::thread_rng()))
         .collect()
 }
 
 pub fn random_g1() -> G1Point {
-    let rand_scalar = Scalar::rand(&mut rand::thread_rng());
-    G1Point::prime_subgroup_generator()
-        .mul(rand_scalar.into_repr())
-        .into_affine()
+    let rand_scalar = Scalar::random(&mut rand::thread_rng());
+    G1Point::generator().mul(rand_scalar).into()
 }
 
 pub fn test_setup(size: usize) -> (PublicParameters, RootsOfUnity) {

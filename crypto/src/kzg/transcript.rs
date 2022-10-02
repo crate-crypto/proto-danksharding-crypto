@@ -1,6 +1,4 @@
-use crate::{bls_point_encoding::serialize_g1, G1Point, Polynomial, Scalar};
-use ark_ff::to_bytes;
-use ark_ff::PrimeField;
+use crate::{G1Point, Polynomial, Scalar};
 
 /// Transcript is an abstraction over the Fiat-Shamir
 /// heuristic
@@ -21,13 +19,13 @@ impl Transcript {
 
     pub fn append_polynomial(&mut self, poly: &Polynomial) {
         for eval in &poly.evaluations {
-            let fr_bytes = to_bytes!(eval).unwrap();
+            let fr_bytes = eval.to_bytes_be();
             self.append_bytes(&fr_bytes)
         }
     }
 
     pub fn append_g1_point(&mut self, point: &G1Point) {
-        self.append_bytes(&serialize_g1(point));
+        self.append_bytes(&point.to_compressed());
     }
 
     pub fn challenge_scalar(&mut self) -> Scalar {
@@ -41,7 +39,7 @@ impl Transcript {
         // Clear the buffer to be interopable with the specs
         self.bytes.clear();
 
-        Scalar::from_le_bytes_mod_order(&hash_output)
+        crate::arkworks::unreduced_bytes_to_scalar(&hash_output)
     }
 }
 
