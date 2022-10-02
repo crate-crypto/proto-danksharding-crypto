@@ -10,19 +10,8 @@ edition = "2021"
 crypto = { path = "../crypto" }
 bitvec = "1.0.1"
 
-# remove used for testing
-ark-ff = "0.3"
-rand = "0.8.3"
-
 
 [features]
 # Do not use this flag in production
 default = ["insecure"]
 insecure = ["crypto/insecure"]
-
-[dev-dependencies]
-criterion = "0.4"
-
-[[bench]]
-name = "my_benchmark"
-harness = false

@@ -1,5 +1,5 @@
-use ark_ff::UniformRand;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ff::Field;
 use specs::{
     constants::{FIELD_ELEMENTS_PER_BLOB, MAX_BLOBS_PER_BLOCK},
     Blob, Context, Scalar,
@@ -15,7 +15,7 @@ fn fibonacci(n: u64) -> u64 {
 }
 
 fn random_blob() -> Blob {
-    let mut elements = vec![Scalar::rand(&mut rand::thread_rng()); FIELD_ELEMENTS_PER_BLOB];
+    let mut elements = vec![Scalar::random(&mut rand::thread_rng()); FIELD_ELEMENTS_PER_BLOB];
     Blob::new(elements)
 }
 
