@@ -1,6 +1,5 @@
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-
 use crate::{batch_inverse, g1_lincomb, polynomial::Polynomial, G1Point, RootsOfUnity, Scalar};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 // The key that is used to commit to polynomials in monomial form
 //
