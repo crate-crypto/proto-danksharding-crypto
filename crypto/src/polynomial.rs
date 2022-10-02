@@ -1,6 +1,8 @@
 use crate::{inverse, RootsOfUnity, Scalar};
 use ark_ff::{Field, One, Zero};
-use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+};
 use std::ops::{Add, Mul};
 
 #[derive(Debug, Clone)]
@@ -140,7 +142,7 @@ impl Polynomial {
 fn scale_polynomial(poly: &Polynomial, scalar: Scalar) -> Polynomial {
     Polynomial::new(
         poly.evaluations
-            .iter()
+            .par_iter()
             .map(|element| *element * scalar)
             .collect(),
     )
@@ -148,7 +150,7 @@ fn scale_polynomial(poly: &Polynomial, scalar: Scalar) -> Polynomial {
 fn polynomial_addition(lhs: &Polynomial, rhs: &Polynomial) -> Polynomial {
     Polynomial::new(
         lhs.evaluations
-            .iter()
+            .par_iter()
             .zip(&rhs.evaluations)
             .map(|(a, b)| *a + *b)
             .collect(),
