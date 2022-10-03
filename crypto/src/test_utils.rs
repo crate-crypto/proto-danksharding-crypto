@@ -1,9 +1,7 @@
-use std::ops::Mul;
-
+use crate::{polynomial::Polynomial, G1Point, PublicParameters, RootsOfUnity, Scalar};
 use ff::Field;
 use group::prime::PrimeCurveAffine;
-
-use crate::{polynomial::Polynomial, G1Point, PublicParameters, RootsOfUnity, Scalar};
+use std::ops::Mul;
 
 pub fn random_polynomial(length: usize) -> Polynomial {
     Polynomial::new(random_vector(length))
