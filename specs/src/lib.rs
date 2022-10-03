@@ -88,18 +88,4 @@ impl Context {
             &self.roots_of_unity,
         )
     }
-
-    // pub fn compute_kzg_proof(&self, poly: &Blob, input_point: Scalar) -> KZGProof {
-    //     let proof = CryptoKZGProof::create_without_poly_commitment(
-    //         &self.public_parameters.commit_key,
-    //         poly,
-    //         input_point,
-    //         &self.roots_of_unity.domain(),
-    //     );
-
-    //     // Return only the commitment to the witness to be spec compliant
-    //     proof.quotient_commitment
-    // }
-    // pub fn verify_kzg_proof(&self) {}
-    // pub fn evaluate_polynomial_in_evaluation_form(&self) {}
 }
