@@ -30,7 +30,7 @@ rand = "0.8.3"
 criterion = "0.4"
 
 [[bench]]
-name = "my_benchmark"
+name = "benchmark"
 harness = false
 
 [features]
