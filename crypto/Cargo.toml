@@ -22,10 +22,11 @@ ark-poly = { version = "0.3", default-features = false }
 ark-bls12-381 = { version = "0.3", default-features = false, features = [
     "curve",
 ] }
+# This is needed for test_utils, but we want to use test_utils 
+# in the benchmarks, so it cannot be gated behind a cfg(test)
+rand = "0.8.3"
 
 [dev-dependencies]
-hex = "0.4.3"
-rand = "0.8.3"
 criterion = "0.4"
 
 [[bench]]

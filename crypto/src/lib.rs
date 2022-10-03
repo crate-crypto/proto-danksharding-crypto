@@ -3,8 +3,8 @@ use std::ops::MulAssign;
 use ff::Field;
 use rayon::prelude::*;
 mod arkworks;
-#[cfg(test)]
-mod test_utils;
+
+pub mod test_utils;
 
 mod kzg;
 mod polynomial;
