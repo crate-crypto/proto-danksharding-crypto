@@ -73,6 +73,7 @@ impl Polynomial {
         // Check that we are evaluating on a point outside of the domain
         //
         // TODO: should this be an assert or should it just choose the `i'th` point in the evaluations
+        // TODO: its technically not an error, just very unlikely to happen
         assert!(
             !domain.contains(&z),
             "the evaluation point is inside of the domain, this method is for points outside of the domain"
