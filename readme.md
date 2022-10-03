@@ -16,7 +16,7 @@ let proof = context.compute_aggregated_kzg_proof(blobs);
 let blob_comms = context.blobs_to_kzg_commitments(blobs);
 let valid = context.verify_aggregated_kzg_proof(blobs, blob_comms, proof);
 assert!(valid)
-``
+```
 
 ## Benchmarks
 
