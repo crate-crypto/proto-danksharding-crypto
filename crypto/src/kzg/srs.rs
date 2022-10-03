@@ -2,7 +2,7 @@ use super::{
     commit_key::{CommitKey, CommitKeyLagrange},
     opening_key::OpeningKey,
 };
-use crate::{G1Point, G2Point, Scalar};
+use crate::{G1Point, G2Point};
 
 // This is the SRS both in monomial and lagrange form
 //
@@ -15,6 +15,7 @@ pub struct PublicParameters {
 impl PublicParameters {
     #[cfg(any(feature = "insecure", test))]
     pub fn from_secret(tau: u64, num_g1: usize) -> Self {
+        use crate::Scalar;
         use group::prime::PrimeCurveAffine;
 
         let tau_fr = Scalar::from(tau);

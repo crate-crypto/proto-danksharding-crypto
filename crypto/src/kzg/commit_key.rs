@@ -23,6 +23,7 @@ impl CommitKey {
     // as this is not used
 
     pub fn into_lagrange(self) -> CommitKeyLagrange {
+        _ = self.inner;
         todo!("add a method that converts the commit key from monomial to lagrange basis")
     }
 }

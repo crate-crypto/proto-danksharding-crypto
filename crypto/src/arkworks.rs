@@ -28,6 +28,7 @@ pub fn unreduced_bytes_to_scalar(hash: &[u8]) -> BlsScalar {
     convert_arkworks_scalar_to_blst_scalar(scalar)
 }
 
+#[cfg(any(feature = "insecure", test))]
 pub fn evaluate_lagrange_coefficients(size: usize, tau: u64) -> Vec<BlsScalar> {
     use ark_poly::GeneralEvaluationDomain;
 
