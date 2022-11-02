@@ -8,9 +8,17 @@ pub struct Transcript {
     bytes: Vec<u8>,
 }
 
+// Domain separator to identify the protocol
+pub const DOM_SEP_PROTOCOL: &str = "FSBLOBVERIFY_V1_";
+
 impl Transcript {
     pub fn new() -> Transcript {
         Transcript { bytes: Vec::new() }
+    }
+    pub fn with_protocol_name(label: &'static str) -> Transcript {
+        Transcript {
+            bytes: label.as_bytes().to_vec(),
+        }
     }
 
     fn append_bytes(&mut self, to_append: &[u8]) {
@@ -19,13 +27,36 @@ impl Transcript {
 
     pub fn append_polynomial(&mut self, poly: &Polynomial) {
         for eval in &poly.evaluations {
-            let fr_bytes = eval.to_bytes_be();
+            let fr_bytes = eval.to_bytes_le();
             self.append_bytes(&fr_bytes)
         }
     }
 
     pub fn append_g1_point(&mut self, point: &G1Point) {
         self.append_bytes(&point.to_compressed());
+    }
+
+    pub fn append_polys_points(&mut self, polys: &[Polynomial], points: &[G1Point]) {
+        let num_points = points.len();
+        let num_polys = polys.len();
+        if num_points != num_polys {
+            panic!("number of points must equal the number of polynomials")
+        }
+
+        if num_points == 0 {
+            panic!("number of points/polys must not be zero")
+        }
+
+        let poly_degree = polys[0].evaluations.len() as u64;
+        self.append_bytes(&poly_degree.to_le_bytes());
+        self.append_bytes(&(num_polys as u64).to_le_bytes());
+
+        for poly in polys {
+            self.append_polynomial(poly)
+        }
+        for point in points {
+            self.append_g1_point(point)
+        }
     }
 
     pub fn challenge_scalar(&mut self) -> Scalar {
