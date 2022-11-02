@@ -11,7 +11,10 @@
 /// and is therefore able to evaluate them. The polynomials
 /// could be incorrect and so the verifier uses trusted commitments
 /// to verify whether the polynomials are consistent with the commitments.
-use super::{commit_key::CommitKeyLagrange, opening_key::OpeningKey, proof::KZGWitness};
+use super::{
+    commit_key::CommitKeyLagrange, opening_key::OpeningKey, proof::KZGWitness,
+    transcript::DOM_SEP_PROTOCOL,
+};
 use crate::{
     g1_lincomb, kzg::transcript::Transcript, polynomial::Polynomial, G1Point, KZGProof,
     RootsOfUnity, Scalar,
@@ -45,22 +48,20 @@ impl AggregatedKZG {
 
 impl AggregatedKZG {
     pub fn create(&self, commit_key: &CommitKeyLagrange, domain: &RootsOfUnity) -> KZGWitness {
-        let mut transcript = Transcript::new();
+        let mut transcript = Transcript::with_protocol_name(DOM_SEP_PROTOCOL);
 
         // First aggregate the polynomials together
         //
-        let (aggregated_poly, aggregated_comm) =
+        let (aggregated_poly, aggregated_comm, eval_point) =
             compute_aggregate_poly_and_comm(&mut transcript, &self.polys, &self.poly_comms);
 
-        // Add the aggregated polynomial and its commitment to the transcript
-        // TODO(Note): Deviates from the spec as it would require ssz in crypto lib
-        transcript.append_polynomial(&aggregated_poly);
-        transcript.append_g1_point(&aggregated_comm);
-
-        // Generate a challenge
-        let x = transcript.challenge_scalar();
-
-        let proof = KZGProof::create(commit_key, &aggregated_poly, aggregated_comm, x, domain);
+        let proof = KZGProof::create(
+            commit_key,
+            &aggregated_poly,
+            aggregated_comm,
+            eval_point,
+            domain,
+        );
 
         // Since the verifier knows the polynomials,
         // they are able to compute the input and output point.
@@ -75,23 +76,15 @@ impl AggregatedKZG {
         quotient_commitment: KZGWitness,
         domain: &RootsOfUnity,
     ) -> bool {
-        let mut transcript = Transcript::new();
+        let mut transcript = Transcript::with_protocol_name(DOM_SEP_PROTOCOL);
 
         // First aggregate the polynomials together
         //
-        let (aggregated_poly, aggregated_comm) =
+        let (aggregated_poly, aggregated_comm, eval_point) =
             compute_aggregate_poly_and_comm(&mut transcript, &self.polys, &self.poly_comms);
 
-        // Add the aggregated polynomial and its commitment to the transcript
-        // TODO(Note): Deviates from the spec as it would require ssz in crypto lib
-        transcript.append_polynomial(&aggregated_poly);
-        transcript.append_g1_point(&aggregated_comm);
-
-        // Generate a challenge
-        let x = transcript.challenge_scalar();
-
         // Evaluate the aggregated polynomial
-        let y = aggregated_poly.evaluate_outside_of_domain(x, domain);
+        let y = aggregated_poly.evaluate_outside_of_domain(eval_point, domain);
 
         let proof = KZGProof {
             polynomial_commitment: aggregated_comm,
@@ -99,7 +92,7 @@ impl AggregatedKZG {
             output_point: y,
         };
 
-        proof.verify(x, opening_key)
+        proof.verify(eval_point, opening_key)
     }
 }
 
@@ -107,18 +100,11 @@ pub fn compute_aggregate_poly_and_comm<'a>(
     transcript: &mut Transcript,
     polys: &[Polynomial],
     poly_comms: &[G1Point],
-) -> (Polynomial, G1Point) {
+) -> (Polynomial, G1Point, Scalar) {
     assert_eq!(polys.len(), poly_comms.len());
 
-    // TODO(Note): Deviates from the spec as it would require ssz in crypto lib
-    // Add each polynomial into the transcript
-    for poly in polys {
-        transcript.append_polynomial(poly);
-    }
-    // Add each commitment for the polynomial
-    for comm in poly_comms {
-        transcript.append_g1_point(comm);
-    }
+    // Add polynomials and commitments into the transcript
+    transcript.append_polys_points(polys, poly_comms);
 
     let challenge = transcript.challenge_scalar();
     let powers = compute_powers(challenge, poly_comms.len() as u64);
@@ -129,7 +115,10 @@ pub fn compute_aggregate_poly_and_comm<'a>(
     // The result is a commitment to the aggregated polynomial
     let aggregated_poly_comm = g1_lincomb(&poly_comms, &powers);
 
-    (aggregated_poly, aggregated_poly_comm)
+    // Compute the point at which we will open the aggregated polynomial at
+    let evaluation_point = challenge * powers.last().unwrap();
+
+    (aggregated_poly, aggregated_poly_comm, evaluation_point)
 }
 
 fn compute_powers(x: Scalar, n: u64) -> Vec<Scalar> {
