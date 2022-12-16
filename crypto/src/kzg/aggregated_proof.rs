@@ -106,17 +106,17 @@ pub fn compute_aggregate_poly_and_comm<'a>(
     // Add polynomials and commitments into the transcript
     transcript.append_polys_points(polys, poly_comms);
 
-    let challenge = transcript.challenge_scalar();
-    let powers = compute_powers(challenge, poly_comms.len() as u64);
+    let challenges = transcript.challenge_scalars(2);
+    let linear_combination_challenge = challenges[0];
+    let evaluation_point = challenges[1];
+
+    let powers = compute_powers(linear_combination_challenge, poly_comms.len() as u64);
 
     let aggregated_poly = Polynomial::matrix_lincomb(polys, &powers);
 
     // Linearly combine the commitments using the challenges
     // The result is a commitment to the aggregated polynomial
     let aggregated_poly_comm = g1_lincomb(&poly_comms, &powers);
-
-    // Compute the point at which we will open the aggregated polynomial at
-    let evaluation_point = challenge * powers.last().unwrap();
 
     (aggregated_poly, aggregated_poly_comm, evaluation_point)
 }
