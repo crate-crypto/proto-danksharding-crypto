@@ -8,4 +8,4 @@ pub const MAX_BLOBS_PER_BLOCK: usize = 16;
 /// While the trusted setup has not been completed
 /// This is the tau value that will be used as a mock
 /// It is not secure to use this in production.
-pub const SECRET_TAU: u64 = 100;
+pub const SECRET_TAU: u64 = 1337;
