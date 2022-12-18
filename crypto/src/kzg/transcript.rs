@@ -11,7 +11,7 @@ use crate::{G1Point, Polynomial, Scalar};
 /// To be interopable with the specs, we do not include the usual domain separators
 pub struct Transcript {
     bytes: Vec<u8>,
-    hashFn: sha2::Sha256,
+    hash_fn: sha2::Sha256,
 }
 
 // The number of bytes the hash function being used
@@ -25,25 +25,25 @@ impl Transcript {
     pub fn new() -> Transcript {
         Transcript {
             bytes: Vec::new(),
-            hashFn: sha2::Sha256::new(),
+            hash_fn: sha2::Sha256::new(),
         }
     }
     pub fn with_protocol_name(label: &'static str) -> Transcript {
         Transcript {
             bytes: label.as_bytes().to_vec(),
-            hashFn: sha2::Sha256::new(),
+            hash_fn: sha2::Sha256::new(),
         }
     }
     // hash bytes and reset hasher's internal state
     fn hash(&mut self, bytes: &[u8]) -> [u8; HASH_OUTPUT_SIZE] {
-        self.hashFn.update(bytes);
-        self.hashFn.finalize_fixed_reset().into()
+        self.hash_fn.update(bytes);
+        self.hash_fn.finalize_fixed_reset().into()
     }
 
     // hash the transcripts internal state and reset the hasher's internal state
     fn hash_transcript(&mut self) -> [u8; HASH_OUTPUT_SIZE] {
-        self.hashFn.update(&self.bytes);
-        self.hashFn.finalize_fixed_reset().into()
+        self.hash_fn.update(&self.bytes);
+        self.hash_fn.finalize_fixed_reset().into()
     }
 
     fn append_bytes(&mut self, to_append: &[u8]) {
