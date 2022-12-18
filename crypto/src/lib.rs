@@ -1,5 +1,3 @@
-use std::ops::MulAssign;
-
 use ff::Field;
 use rayon::prelude::*;
 mod arkworks;
@@ -9,10 +7,18 @@ pub mod test_utils;
 mod kzg;
 mod polynomial;
 mod roots_of_unity;
+
 pub type G1Point = blstrs::G1Affine;
 pub type G2Point = blstrs::G2Affine;
 pub type Scalar = blstrs::Scalar;
 pub type KZGCommitment = G1Point;
+
+// The number of bytes needed to represent a scalar
+pub const SCALAR_SERIALISED_SIZE: usize = 32;
+// The number of bytes needed to represent a compressed G1 point
+pub const G1_POINT_SERIALISED_SIZE: usize = 48;
+
+pub(crate) type G1Projective = blstrs::G1Projective;
 
 pub use kzg::{
     aggregated_proof::AggregatedKZG,
@@ -37,12 +43,14 @@ pub fn g1_lincomb(points: &[G1Point], scalars: &[Scalar]) -> G1Point {
     // TODO: Spec says we should panic, but as a lib its better to return result
     assert_eq!(points.len(), scalars.len());
 
-    // Blst library needs projective points, so we will clone and convert here
+    // TODO: Blst library needs projective points, so we will clone and convert here
     let points: Vec<_> = points
         .into_par_iter()
         .map(|point| blstrs::G1Projective::from(point))
         .collect();
 
+    // TODO: the internal lib seems to be converting back to Affine, so we need to
+    // TODO create our own version of this function
     blstrs::G1Projective::multi_exp(&points, scalars).into()
 }
 
@@ -65,6 +73,8 @@ pub fn batch_inversion(v: &mut [Scalar]) {
 /// Given a vector of field elements {v_i}, compute the vector {coeff * v_i^(-1)}
 /// This method is explicitly single core.
 fn serial_batch_inversion(v: &mut [Scalar]) {
+    use std::ops::MulAssign;
+
     // Montgomery’s Trick and Fast Implementation of Masked AES
     // Genelle, Prouff and Quisquater
     // Section 3.2
