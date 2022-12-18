@@ -14,8 +14,9 @@ pub struct Context {
 use crypto::Scalar;
 
 pub type BlobBytes = Vec<u8>;
-pub type KZGCommitmentBytes = [u8; 48];
-pub type KZGWitnessBytes = [u8; 48];
+pub type CompressedPoint = [u8; 48];
+pub type KZGCommitmentBytes = CompressedPoint;
+pub type KZGWitnessBytes = CompressedPoint;
 
 impl Context {
     #[cfg(feature = "insecure")]
