@@ -168,7 +168,7 @@ fn bytes_to_scalar(scalar_bytes: &SerialisedScalar) -> Option<Scalar> {
     let ct_scalar = Scalar::from_bytes_le(scalar_bytes);
     bool::from(ct_scalar.is_some()).then(|| ct_scalar.unwrap())
 }
-
+#[cfg(test)]
 mod tests {
     use super::Context;
     use serde::Deserialize;
