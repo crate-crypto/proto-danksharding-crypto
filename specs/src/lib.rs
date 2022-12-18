@@ -1,7 +1,10 @@
 pub mod constants;
 mod permutation;
 
-use crypto::{AggregatedKZG, G1Point, KZGCommitment, Polynomial, PublicParameters, RootsOfUnity};
+use crypto::{
+    AggregatedKZG, G1Point, KZGCommitment, Polynomial, PublicParameters, RootsOfUnity,
+    G1_POINT_SERIALISED_SIZE, SCALAR_SERIALISED_SIZE,
+};
 use permutation::Permutable;
 
 // What this library calls a `KZGWitness` the spec calls a `KZGProof`
@@ -14,9 +17,10 @@ pub struct Context {
 use crypto::Scalar;
 
 pub type BlobBytes = Vec<u8>;
-pub type CompressedPoint = [u8; 48];
-pub type KZGCommitmentBytes = CompressedPoint;
-pub type KZGWitnessBytes = CompressedPoint;
+pub type SerialisedScalar = [u8; SCALAR_SERIALISED_SIZE];
+pub type SerialisedPoint = [u8; G1_POINT_SERIALISED_SIZE];
+pub type KZGCommitmentBytes = SerialisedPoint;
+pub type KZGWitnessBytes = SerialisedPoint;
 
 impl Context {
     #[cfg(feature = "insecure")]
@@ -60,7 +64,9 @@ impl Context {
         &self,
         blobs_bytes: Vec<BlobBytes>,
     ) -> Option<(KZGWitnessBytes, Vec<KZGCommitmentBytes>)> {
-        let mut blobs = Vec::with_capacity(blobs_bytes.len());
+        let num_blobs = blobs_bytes.len();
+
+        let mut blobs = Vec::with_capacity(num_blobs);
         for blob_byte in blobs_bytes {
             blobs.push(blob_bytes_to_polynomial(blob_byte)?);
         }
@@ -70,6 +76,7 @@ impl Context {
             .iter()
             .map(|point| point.to_compressed())
             .collect();
+
         let aggregate_kzg = AggregatedKZG::from_polys(blobs, blob_comms);
 
         let witness =
@@ -85,12 +92,14 @@ impl Context {
         // This is known as `kzg_aggregated_proof` in the specs
         witness_comm_bytes: KZGWitnessBytes,
     ) -> Option<bool> {
-        let mut blobs = Vec::with_capacity(blobs_bytes.len());
+        let num_blobs = blobs_bytes.len();
+
+        let mut blobs = Vec::with_capacity(num_blobs);
         for blob_byte in blobs_bytes {
             blobs.push(blob_bytes_to_polynomial(blob_byte)?);
         }
 
-        let mut blob_comms = Vec::with_capacity(blob_comms_bytes.len());
+        let mut blob_comms = Vec::with_capacity(num_blobs);
         for comm_bytes in blob_comms_bytes {
             blob_comms.push(bytes_to_point(&comm_bytes)?)
         }
@@ -98,47 +107,66 @@ impl Context {
         let witness_comm = bytes_to_point(&witness_comm_bytes)?;
 
         let aggregate_kzg = AggregatedKZG::from_polys(blobs, blob_comms);
-        let ok = aggregate_kzg.verify(
+        Some(aggregate_kzg.verify(
             &self.public_parameters.opening_key,
             witness_comm,
             &self.roots_of_unity,
-        );
-        Some(ok)
+        ))
     }
 
-    pub fn verify_kzg_proof() {
-        todo!("this is needed for the precompile")
+    pub fn verify_kzg_proof(
+        &self,
+        commitment: KZGCommitmentBytes,
+        input_point: SerialisedScalar,
+        claimed_value: SerialisedScalar,
+        proof: KZGWitnessBytes,
+    ) -> Option<bool> {
+        let input_point = bytes_to_scalar(&input_point)?;
+        let claimed_value = bytes_to_scalar(&claimed_value)?;
+        let poly_commitment = bytes_to_point(&commitment)?;
+        let quotient_commitment = bytes_to_point(&proof)?;
+
+        Some(self.public_parameters.opening_key.verify(
+            input_point,
+            claimed_value,
+            poly_commitment,
+            quotient_commitment,
+        ))
     }
     pub fn compute_kzg_proof() {
         todo!("this is a helper method for the verification method")
     }
 }
 
-// convert an opaque stream of bytes into a polynomial
 fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
-    if bytes.len() % 32 != 0 || bytes.len() == 0 {
+    if bytes.len() % SCALAR_SERIALISED_SIZE != 0 {
         return None;
     }
 
-    let num_scalars = bytes.len() / 32;
+    if bytes.is_empty() {
+        todo!("need to check strategy to handle empty blobs")
+    }
+
+    let num_scalars = bytes.len() / SCALAR_SERIALISED_SIZE;
 
     let mut polynomial_inner = Vec::with_capacity(num_scalars);
-    let iter = bytes.chunks_exact(32);
+    let iter = bytes.chunks_exact(SCALAR_SERIALISED_SIZE);
     for chunk in iter {
-        let chunk32: [u8; 32] = chunk
+        let chunk32: SerialisedScalar = chunk
             .try_into()
             .expect("infallible: since the length of the bytes vector is a multiple of 32");
-        let ct_scalar = Scalar::from_bytes_le(&chunk32);
-        let scalar = bool::from(ct_scalar.is_some()).then(|| ct_scalar.unwrap())?;
-        polynomial_inner.push(scalar)
+        polynomial_inner.push(bytes_to_scalar(&chunk32)?)
     }
 
     Polynomial::new(polynomial_inner).into()
 }
-
-fn bytes_to_point(point_bytes: &[u8; 48]) -> Option<G1Point> {
+fn bytes_to_point(point_bytes: &SerialisedPoint) -> Option<G1Point> {
     let ct_point = G1Point::from_compressed(&point_bytes);
     bool::from(ct_point.is_some()).then(|| ct_point.unwrap())
+}
+fn bytes_to_scalar(scalar_bytes: &SerialisedScalar) -> Option<Scalar> {
+    let ct_scalar = Scalar::from_bytes_le(scalar_bytes);
+    bool::from(ct_scalar.is_some()).then(|| ct_scalar.unwrap())
 }
 
 mod tests {
