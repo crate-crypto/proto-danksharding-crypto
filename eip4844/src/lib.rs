@@ -2,8 +2,8 @@ pub mod constants;
 mod permutation;
 
 use crypto::{
-    AggregatedKZG, G1Point, KZGCommitment, Polynomial, PublicParameters, RootsOfUnity,
-    G1_POINT_SERIALISED_SIZE, SCALAR_SERIALISED_SIZE,
+    AggregatedKZG, G1Point, Polynomial, PublicParameters, RootsOfUnity, G1_POINT_SERIALISED_SIZE,
+    SCALAR_SERIALISED_SIZE,
 };
 use permutation::Permutable;
 
@@ -42,42 +42,46 @@ impl Context {
         todo!("The trusted setup has not been completed. For testing use the `insecure` method")
     }
 
-    // Taken from specs
+    // TODO: We can remove this from the public API
     pub fn blob_to_kzg_commitment(&self, blob_bytes: BlobBytes) -> Option<KZGCommitmentBytes> {
-        let blob = blob_bytes_to_polynomial(blob_bytes)?;
-        let commitment = self.public_parameters.commit_key.commit(&blob);
-        Some(commitment.to_compressed())
+        let commitments = self.blobs_to_kzg_commitments(vec![blob_bytes])?;
+        Some(commitments[0])
     }
 
     pub fn blobs_to_kzg_commitments(
         &self,
         blobs_bytes: Vec<BlobBytes>,
-    ) -> Option<Vec<KZGCommitment>> {
-        let mut blobs = Vec::with_capacity(blobs_bytes.len());
-        for blob_byte in blobs_bytes {
-            blobs.push(blob_bytes_to_polynomial(blob_byte)?);
-        }
-        Some(self.public_parameters.commit_key.commit_multiple(&blobs))
+    ) -> Option<Vec<KZGCommitmentBytes>> {
+        let polynomials = blobs_to_polynomials(blobs_bytes)?;
+
+        let commitments: Vec<_> = self
+            .public_parameters
+            .commit_key
+            .commit_multiple(&polynomials)
+            .into_iter()
+            .map(|comm| comm.to_compressed())
+            .collect();
+
+        Some(commitments)
     }
 
     pub fn compute_aggregated_kzg_proof(
         &self,
         blobs_bytes: Vec<BlobBytes>,
     ) -> Option<(KZGWitnessBytes, Vec<KZGCommitmentBytes>)> {
-        let num_blobs = blobs_bytes.len();
+        let polynomials = blobs_to_polynomials(blobs_bytes)?;
 
-        let mut blobs = Vec::with_capacity(num_blobs);
-        for blob_byte in blobs_bytes {
-            blobs.push(blob_bytes_to_polynomial(blob_byte)?);
-        }
+        let blob_comms = self
+            .public_parameters
+            .commit_key
+            .commit_multiple(&polynomials);
 
-        let blob_comms = self.public_parameters.commit_key.commit_multiple(&blobs);
         let blob_comms_bytes: Vec<_> = blob_comms
             .iter()
             .map(|point| point.to_compressed())
             .collect();
 
-        let aggregate_kzg = AggregatedKZG::from_polys(blobs, blob_comms);
+        let aggregate_kzg = AggregatedKZG::from_polys(polynomials, blob_comms);
 
         let witness =
             aggregate_kzg.create(&self.public_parameters.commit_key, &self.roots_of_unity);
@@ -92,21 +96,17 @@ impl Context {
         // This is known as `kzg_aggregated_proof` in the specs
         witness_comm_bytes: KZGWitnessBytes,
     ) -> Option<bool> {
-        let num_blobs = blobs_bytes.len();
+        let polynomials = blobs_to_polynomials(blobs_bytes)?;
+        let num_polys = polynomials.len();
 
-        let mut blobs = Vec::with_capacity(num_blobs);
-        for blob_byte in blobs_bytes {
-            blobs.push(blob_bytes_to_polynomial(blob_byte)?);
-        }
-
-        let mut blob_comms = Vec::with_capacity(num_blobs);
+        let mut poly_comms = Vec::with_capacity(num_polys);
         for comm_bytes in blob_comms_bytes {
-            blob_comms.push(bytes_to_point(&comm_bytes)?)
+            poly_comms.push(bytes_to_point(&comm_bytes)?)
         }
 
         let witness_comm = bytes_to_point(&witness_comm_bytes)?;
 
-        let aggregate_kzg = AggregatedKZG::from_polys(blobs, blob_comms);
+        let aggregate_kzg = AggregatedKZG::from_polys(polynomials, poly_comms);
         Some(aggregate_kzg.verify(
             &self.public_parameters.opening_key,
             witness_comm,
@@ -138,6 +138,16 @@ impl Context {
     }
 }
 
+fn blobs_to_polynomials(blobs_bytes: Vec<BlobBytes>) -> Option<Vec<Polynomial>> {
+    let num_blobs = blobs_bytes.len();
+    let mut polynomials = Vec::with_capacity(num_blobs);
+
+    for blob_byte in blobs_bytes {
+        polynomials.push(blob_bytes_to_polynomial(blob_byte)?);
+    }
+
+    Some(polynomials)
+}
 fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
     if bytes.len() % SCALAR_SERIALISED_SIZE != 0 {
         return None;

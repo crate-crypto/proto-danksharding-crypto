@@ -17,4 +17,5 @@ hex = "*"
 [features]
 # Do not use this flag in production
 default = ["insecure"]
+parallel = ["crypto/parallel"]
 insecure = ["crypto/insecure"]
