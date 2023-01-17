@@ -1,5 +1,7 @@
 use crate::{batch_inverse, g1_lincomb, polynomial::Polynomial, G1Point, RootsOfUnity, Scalar};
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
 
 // The key that is used to commit to polynomials in monomial form
 //
@@ -21,7 +23,6 @@ impl CommitKey {
     }
     // Note: There is no commit method for CommitKey in monomial basis
     // as this is not used
-
     pub fn into_lagrange(self) -> CommitKeyLagrange {
         _ = self.inner;
         todo!("add a method that converts the commit key from monomial to lagrange basis")
@@ -52,10 +53,12 @@ impl CommitKeyLagrange {
 
     /// Commit to multiple polynomials in lagrange form
     pub fn commit_multiple(&self, polynomials: &[Polynomial]) -> Vec<G1Point> {
-        polynomials
-            .into_par_iter()
-            .map(|poly| self.commit(poly))
-            .collect()
+        #[cfg(not(feature = "rayon"))]
+        let polys_iter = polynomials.into_iter();
+        #[cfg(feature = "rayon")]
+        let polys_iter = polynomials.into_par_iter();
+
+        polys_iter.map(|poly| self.commit(poly)).collect()
     }
     /// Returns the maximum degree polynomial that one can commit to
     /// Since we are in lagrange basis, it is the number of points minus one
@@ -78,19 +81,27 @@ impl CommitKeyLagrange {
         output_point: Scalar,
         domain: &RootsOfUnity,
     ) -> Polynomial {
+        #[cfg(not(feature = "rayon"))]
+        let roots_iter = domain.roots().iter();
+        #[cfg(feature = "rayon")]
+        let roots_iter = domain.roots().par_iter();
+
         // Compute the denominator and store it in the quotient vector, to avoid re-allocation
-        let mut quotient: Vec<_> = domain
-            .roots()
-            .iter()
+        let mut quotient: Vec<_> = roots_iter
             .map(|domain_element| *domain_element - input_point)
             .collect();
         batch_inverse(&mut quotient);
 
+        #[cfg(not(feature = "rayon"))]
+        let quotient_iter = quotient.iter_mut();
+        #[cfg(feature = "rayon")]
+        let quotient_iter = quotient.par_iter_mut();
+
         // Compute the numerator polynomial and multiply it by the quotient which holds the
         // denominator
-        for (quotient_i, eval_i) in quotient.iter_mut().zip(&poly.evaluations) {
-            *quotient_i = (*eval_i - output_point) * *quotient_i
-        }
+        quotient_iter
+            .zip(&poly.evaluations)
+            .for_each(|(quotient_i, eval_i)| *quotient_i = (*eval_i - output_point) * *quotient_i);
 
         // Simple way to do this
         // let domain_size = domain.len();

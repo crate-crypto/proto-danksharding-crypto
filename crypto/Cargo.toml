@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 sha2 = "0.10.6"
-rayon = { version = "1.3" }
+rayon = { version = "1.3", optional = true }
 
 # blstrs related dependencies
 blstrs = "0.6.1"
@@ -28,6 +28,7 @@ rand = "0.8.3"
 
 [dev-dependencies]
 criterion = "0.4"
+hex = "*"
 
 [[bench]]
 name = "benchmark"
@@ -35,5 +36,4 @@ harness = false
 
 [features]
 insecure = []
-default = ["parallel"]
-parallel = ["ark-ff/parallel", "ark-poly/parallel", "ark-ff/asm"]
+parallel = ["ark-ff/parallel", "ark-poly/parallel", "ark-ff/asm", "rayon"]

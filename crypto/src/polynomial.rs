@@ -1,5 +1,6 @@
 use crate::{inverse, RootsOfUnity, Scalar};
 use group::ff::Field;
+#[cfg(feature = "rayon")]
 use rayon::prelude::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
@@ -108,7 +109,7 @@ impl Polynomial {
             .fold(
                 || vec![Scalar::zero(); row_len],
                 |sum, val| {
-                    sum.into_iter()
+                    sum.into_par_iter()
                         .zip(val.evaluations)
                         .map(|(a_i, b_i)| a_i + b_i)
                         .collect()
@@ -117,7 +118,7 @@ impl Polynomial {
             .reduce(
                 || vec![Scalar::zero(); row_len],
                 |sum, val| {
-                    sum.into_iter()
+                    sum.into_par_iter()
                         .zip(val)
                         .map(|(a_i, b_i)| a_i + b_i)
                         .collect()
@@ -141,17 +142,21 @@ impl Polynomial {
 }
 
 fn scale_polynomial(poly: &Polynomial, scalar: Scalar) -> Polynomial {
-    Polynomial::new(
-        poly.evaluations
-            .par_iter()
-            .map(|element| *element * scalar)
-            .collect(),
-    )
+    #[cfg(feature = "rayon")]
+    let evals_iter = poly.evaluations.par_iter();
+    #[cfg(not(feature = "rayon"))]
+    let evals_iter = poly.evaluations.iter();
+
+    Polynomial::new(evals_iter.map(|element| *element * scalar).collect())
 }
 fn polynomial_addition(lhs: &Polynomial, rhs: &Polynomial) -> Polynomial {
+    #[cfg(feature = "rayon")]
+    let lhs_iter = lhs.evaluations.par_iter();
+    #[cfg(not(feature = "rayon"))]
+    let lhs_iter = lhs.evaluations.iter();
+
     Polynomial::new(
-        lhs.evaluations
-            .par_iter()
+        lhs_iter
             .zip(&rhs.evaluations)
             .map(|(a, b)| *a + *b)
             .collect(),

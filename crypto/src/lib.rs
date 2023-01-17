@@ -1,8 +1,10 @@
 use ff::Field;
-use rayon::prelude::*;
 mod arkworks;
 
 pub mod test_utils;
+
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
 
 mod kzg;
 mod polynomial;
@@ -44,8 +46,12 @@ pub fn g1_lincomb(points: &[G1Point], scalars: &[Scalar]) -> G1Point {
     assert_eq!(points.len(), scalars.len());
 
     // TODO: Blst library needs projective points, so we will clone and convert here
-    let points: Vec<_> = points
-        .into_par_iter()
+    #[cfg(feature = "rayon")]
+    let points_iter = points.into_par_iter();
+    #[cfg(not(feature = "rayon"))]
+    let points_iter = points.into_iter();
+
+    let points: Vec<_> = points_iter
         .map(|point| blstrs::G1Projective::from(point))
         .collect();
 
@@ -56,6 +62,7 @@ pub fn g1_lincomb(points: &[G1Point], scalars: &[Scalar]) -> G1Point {
 
 // Taken from arkworks codebase
 // Given a vector of field elements {v_i}, compute the vector {coeff * v_i^(-1)}
+#[cfg(feature = "rayon")]
 pub fn batch_inversion(v: &mut [Scalar]) {
     // Divide the vector v evenly between all available cores
     let min_elements_per_thread = 1;
@@ -68,6 +75,10 @@ pub fn batch_inversion(v: &mut [Scalar]) {
     v.par_chunks_mut(num_elem_per_thread).for_each(|mut chunk| {
         serial_batch_inversion(&mut chunk);
     });
+}
+#[cfg(not(feature = "rayon"))]
+pub fn batch_inversion(v: &mut [Scalar]) {
+    serial_batch_inversion(v);
 }
 
 /// Given a vector of field elements {v_i}, compute the vector {coeff * v_i^(-1)}

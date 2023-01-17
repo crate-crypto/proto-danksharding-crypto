@@ -1,6 +1,7 @@
 use crate::{G1Point, G2Point, Scalar};
 use blstrs::G2Prepared;
 use blstrs::*;
+use group::Curve;
 use pairing_lib::group::Group;
 use pairing_lib::{MillerLoopResult, MultiMillerLoop};
 
@@ -44,6 +45,8 @@ impl OpeningKey {
         poly_comm: G1Point,
         witness_comm: G1Point,
     ) -> bool {
+        // TODO: .into is doing an inversion. Check if batch normalisation saves anything here
+        // codepath : G1Projective::batch_normalize(p, q)
         let inner_a: G1Point = (poly_comm - (self.g1_gen * output_point)).into();
         let inner_b: G2Point = (self.tau_g2_gen - (self.g2_gen * input_point)).into();
         let prepared_inner_b = G2Prepared::from(-inner_b);
