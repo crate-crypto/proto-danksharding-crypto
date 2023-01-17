@@ -1,0 +1,38 @@
+[package]
+name = "eip4844-js"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook", "eip4844/insecure"]
+parallel = ["eip4844/parallel"]
+
+[dependencies]
+eip4844 = { path = "../eip4844", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+# This is needed so that we can enable the js feature, which is being used in ark-serialize
+# Without it, the wasm will not compile, since we cannot conditionally compile ark-serialize
+getrandom = { version = "0.2.3", features = ["js"] }
+js-sys = "0.3.55"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+ark-ff = "*"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
