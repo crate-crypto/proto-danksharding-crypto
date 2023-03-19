@@ -6,8 +6,6 @@ use crypto::{
 };
 use permutation::Permutable;
 
-// What this library calls a `KZGWitness` the spec calls a `KZGProof`
-
 pub struct Context {
     public_parameters: PublicParameters,
     domain: Domain,
@@ -16,10 +14,10 @@ pub struct Context {
 use crypto::Scalar;
 
 pub type BlobBytes = Vec<u8>;
-pub type SerialisedScalar = [u8; SCALAR_SERIALIZED_SIZE];
-pub type SerialisedPoint = [u8; G1_POINT_SERIALIZED_SIZE];
-pub type KZGCommitmentBytes = SerialisedPoint;
-pub type KZGWitnessBytes = SerialisedPoint;
+pub type SerializedScalar = [u8; SCALAR_SERIALIZED_SIZE];
+pub type SerializedPoint = [u8; G1_POINT_SERIALIZED_SIZE];
+pub type KZGCommitmentBytes = SerializedPoint;
+pub type KZGProofBytes = SerializedPoint;
 
 impl Context {
     pub fn new_insecure() -> Self {
@@ -51,9 +49,9 @@ impl Context {
     pub fn verify_kzg_proof(
         &self,
         commitment: KZGCommitmentBytes,
-        input_point: SerialisedScalar,
-        claimed_value: SerialisedScalar,
-        proof: KZGWitnessBytes,
+        input_point: SerializedScalar,
+        claimed_value: SerializedScalar,
+        proof: KZGProofBytes,
     ) -> Option<bool> {
         let input_point = bytes_to_scalar(&input_point)?;
         let claimed_value = bytes_to_scalar(&claimed_value)?;
@@ -77,16 +75,14 @@ fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
         return None;
     }
 
-    if bytes.is_empty() {
-        todo!("need to check strategy to handle empty blobs")
-    }
+    assert!(!bytes.is_empty(), "blobs should have a fixed non-zero size");
 
     let num_scalars = bytes.len() / SCALAR_SERIALIZED_SIZE;
 
     let mut polynomial_inner = Vec::with_capacity(num_scalars);
     let iter = bytes.chunks_exact(SCALAR_SERIALIZED_SIZE);
     for chunk in iter {
-        let chunk32: SerialisedScalar = chunk
+        let chunk32: SerializedScalar = chunk
             .try_into()
             .expect("infallible: since the length of the bytes vector is a multiple of 32");
         polynomial_inner.push(bytes_to_scalar(&chunk32)?)
@@ -94,11 +90,11 @@ fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
 
     Polynomial::new(polynomial_inner).into()
 }
-fn bytes_to_point(point_bytes: &SerialisedPoint) -> Option<G1Point> {
+fn bytes_to_point(point_bytes: &SerializedPoint) -> Option<G1Point> {
     let ct_point = G1Point::from_compressed(&point_bytes);
     bool::from(ct_point.is_some()).then(|| ct_point.unwrap())
 }
-fn bytes_to_scalar(scalar_bytes: &SerialisedScalar) -> Option<Scalar> {
+fn bytes_to_scalar(scalar_bytes: &SerializedScalar) -> Option<Scalar> {
     let ct_scalar = Scalar::from_bytes_le(scalar_bytes);
     bool::from(ct_scalar.is_some()).then(|| ct_scalar.unwrap())
 }
