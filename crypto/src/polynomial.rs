@@ -1,10 +1,7 @@
-use crate::{inverse, RootsOfUnity, Scalar};
+use std::ops::Index;
+
+use crate::{batch_inversion::batch_inverse, Domain, Scalar};
 use group::ff::Field;
-#[cfg(feature = "rayon")]
-use rayon::prelude::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
-};
-use std::ops::{Add, Mul};
 
 #[derive(Debug, Clone)]
 // Polynomial representation in evaluation form
@@ -16,6 +13,14 @@ pub struct Polynomial {
 impl PartialEq for Polynomial {
     fn eq(&self, other: &Self) -> bool {
         self.evaluations == other.evaluations
+    }
+}
+
+impl Index<usize> for &Polynomial {
+    type Output = Scalar;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.evaluations[i]
     }
 }
 
@@ -38,37 +43,36 @@ impl Polynomial {
         Polynomial { evaluations }
     }
 
-    // The size of the domain that the polynomial was
-    // evaluated over
-    pub fn domain_size(&self) -> usize {
-        self.evaluations.len()
-    }
-
-    // Using the barycentric formula, one can evaluate a polynomial
-    // in evaluation form, on a point `z` that is not inside of its domain
-    pub fn evaluate_outside_of_domain(&self, z: Scalar, domain: &RootsOfUnity) -> Scalar {
-        let domain_size = self.domain_size();
-
+    pub fn evaluate(&self, z: Scalar, domain: &Domain) -> Scalar {
         assert_eq!(
-            domain_size,
+            self.num_evaluations(),
             domain.size(),
             "the size of the domain being used != the domain size of the polynomial"
         );
 
-        // Check that we are evaluating on a point outside of the domain
-        //
-        // TODO: should this be an assert or should it just choose the `i'th` point in the evaluations
-        // TODO: its technically not an error, just very unlikely to happen
-        assert!(
-            !domain.contains(&z),
-            "the evaluation point is inside of the domain, this method is for points outside of the domain"
-        );
+        match domain.find(&z) {
+            Some(index_in_domain) => self.evaluations[index_in_domain],
+            None => self.evaluate_outside_of_domain(z, domain),
+        }
+    }
+
+    // Using the barycentric formula, one can evaluate a polynomial
+    // in evaluation form, on a point `z` that is not inside of its domain
+    fn evaluate_outside_of_domain(&self, z: Scalar, domain: &Domain) -> Scalar {
+        let domain_size = domain.size();
+
+        let mut denominator: Vec<_> = domain.roots().iter().map(|root_i| z - root_i).collect();
+        batch_inverse(&mut denominator);
 
         let mut result = Scalar::zero();
+        // TODO Use zip here on evals, domain and denominator
         for i in 0..domain_size {
-            let denominator = inverse(z - domain[i]);
-            result += (self.evaluations[i] * domain[i]) * denominator;
+            result += (self.evaluations[i] * domain[i]) * denominator[i];
         }
-        result * (z.pow_vartime(&[domain_size as u64]) - Scalar::one()) * domain.inverse_domain_size
+        result * (z.pow_vartime(&[domain_size as u64]) - Scalar::one()) * domain.domain_size_inv
+    }
+
+    fn num_evaluations(&self) -> usize {
+        self.evaluations.len()
     }
 }
