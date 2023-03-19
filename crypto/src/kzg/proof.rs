@@ -1,16 +1,15 @@
 /// This is the traditional KZG proof algorithm
-/// that follows from the paper.
+/// that follows from the KZG paper.
 ///
 /// It is left unmodified and is its own
-/// isolated module. It is used as a sub-protocol for
-/// the aggregated kzg proof algorithm
-use super::{commit_key::CommitKeyLagrange, opening_key::OpeningKey};
-use crate::{G1Point, Polynomial, RootsOfUnity, Scalar};
+/// isolated module.
+use super::{commit_key::CommitKeyLagrange, opening_key::OpeningKey, quotient_poly};
+use crate::{Domain, G1Point, Polynomial, Scalar};
 
 // Commitment to the quotient polynomial
 pub type KZGWitness = G1Point;
 
-pub struct KZGProof {
+pub struct Proof {
     // Commitment to the polynomial that we have created a
     // KZG proof for.
     pub polynomial_commitment: G1Point,
@@ -21,21 +20,21 @@ pub struct KZGProof {
     pub output_point: Scalar,
 }
 
-impl KZGProof {
+impl Proof {
     pub fn create(
         commit_key: &CommitKeyLagrange,
         poly: &Polynomial,
         poly_comm: G1Point,
         input_point: Scalar,
-        domain: &RootsOfUnity,
-    ) -> KZGProof {
-        let output_point = poly.evaluate_outside_of_domain(input_point, domain);
+        domain: &Domain,
+    ) -> Proof {
+        let output_point = poly.evaluate(input_point, domain);
 
-        let quotient = commit_key.compute_quotient(poly, input_point, output_point, domain);
+        let quotient = quotient_poly::compute(poly, input_point, output_point, domain);
 
         let quotient_comm = commit_key.commit(&quotient);
 
-        KZGProof {
+        Proof {
             polynomial_commitment: poly_comm,
             quotient_commitment: quotient_comm,
             output_point,
@@ -69,7 +68,7 @@ mod tests {
 
         let poly_comm = public_parameters.commit_key.commit(&poly);
 
-        let proof = KZGProof::create(
+        let proof = Proof::create(
             &public_parameters.commit_key,
             &poly,
             poly_comm,
