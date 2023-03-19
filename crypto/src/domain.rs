@@ -1,7 +1,6 @@
 use crate::{G1Point, G1Projective, Scalar};
 use ff::{Field, PrimeField};
 use group::{prime::PrimeCurveAffine, Curve, Group};
-use std::ops::Index;
 
 #[derive(Debug, Clone)]
 pub struct Domain {
@@ -78,18 +77,15 @@ impl Domain {
         32
     }
 
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         self.roots.len()
     }
 
-    pub fn contains(&self, element: &Scalar) -> bool {
-        self.find(element).is_some()
-    }
-    pub fn find(&self, element: &Scalar) -> Option<usize> {
+    pub(crate) fn find(&self, element: &Scalar) -> Option<usize> {
         self.roots.iter().position(|root_i| root_i == element)
     }
 
-    pub fn roots(&self) -> &[Scalar] {
+    pub(crate) fn roots(&self) -> &[Scalar] {
         &self.roots
     }
 
@@ -119,7 +115,7 @@ impl Domain {
     }
 }
 
-impl Index<usize> for &Domain {
+impl std::ops::Index<usize> for &Domain {
     type Output = Scalar;
 
     fn index(&self, i: usize) -> &Self::Output {

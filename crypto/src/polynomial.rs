@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use crate::{batch_inversion::batch_inverse, Domain, Scalar};
 use group::ff::Field;
 
@@ -7,7 +5,7 @@ use group::ff::Field;
 // Polynomial representation in evaluation form
 // The domain is not saved with the struct to save memory
 pub struct Polynomial {
-    pub evaluations: Vec<Scalar>,
+    pub(crate) evaluations: Vec<Scalar>,
 }
 
 impl PartialEq for Polynomial {
@@ -16,7 +14,7 @@ impl PartialEq for Polynomial {
     }
 }
 
-impl Index<usize> for &Polynomial {
+impl std::ops::Index<usize> for &Polynomial {
     type Output = Scalar;
 
     fn index(&self, i: usize) -> &Self::Output {
