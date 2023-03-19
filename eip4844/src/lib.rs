@@ -2,8 +2,8 @@ pub mod constants;
 mod permutation;
 
 use crypto::{
-    AggregatedKZG, G1Point, Polynomial, PublicParameters, RootsOfUnity, G1_POINT_SERIALISED_SIZE,
-    SCALAR_SERIALISED_SIZE,
+    AggregatedKZG, G1Point, Polynomial, PublicParameters, RootsOfUnity, G1_POINT_SERIALIZED_SIZE,
+    SCALAR_SERIALIZED_SIZE,
 };
 use permutation::Permutable;
 
@@ -17,8 +17,8 @@ pub struct Context {
 use crypto::Scalar;
 
 pub type BlobBytes = Vec<u8>;
-pub type SerialisedScalar = [u8; SCALAR_SERIALISED_SIZE];
-pub type SerialisedPoint = [u8; G1_POINT_SERIALISED_SIZE];
+pub type SerialisedScalar = [u8; SCALAR_SERIALIZED_SIZE];
+pub type SerialisedPoint = [u8; G1_POINT_SERIALIZED_SIZE];
 pub type KZGCommitmentBytes = SerialisedPoint;
 pub type KZGWitnessBytes = SerialisedPoint;
 
@@ -149,7 +149,7 @@ fn blobs_to_polynomials(blobs_bytes: Vec<BlobBytes>) -> Option<Vec<Polynomial>> 
     Some(polynomials)
 }
 fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
-    if bytes.len() % SCALAR_SERIALISED_SIZE != 0 {
+    if bytes.len() % SCALAR_SERIALIZED_SIZE != 0 {
         return None;
     }
 
@@ -157,10 +157,10 @@ fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
         todo!("need to check strategy to handle empty blobs")
     }
 
-    let num_scalars = bytes.len() / SCALAR_SERIALISED_SIZE;
+    let num_scalars = bytes.len() / SCALAR_SERIALIZED_SIZE;
 
     let mut polynomial_inner = Vec::with_capacity(num_scalars);
-    let iter = bytes.chunks_exact(SCALAR_SERIALISED_SIZE);
+    let iter = bytes.chunks_exact(SCALAR_SERIALIZED_SIZE);
     for chunk in iter {
         let chunk32: SerialisedScalar = chunk
             .try_into()
