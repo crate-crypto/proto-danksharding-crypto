@@ -15,6 +15,8 @@ pub type KZGCommitment = G1Point;
 pub const SCALAR_SERIALIZED_SIZE: usize = 32;
 // The number of bytes needed to represent a compressed G1 point
 pub const G1_POINT_SERIALIZED_SIZE: usize = 48;
+// The number of bytes needed to represent a compressed G2 point
+pub const G2_POINT_SERIALIZED_SIZE: usize = 96;
 
 // TODO: we can just make this the default type
 pub(crate) type G1Projective = blstrs::G1Projective;
