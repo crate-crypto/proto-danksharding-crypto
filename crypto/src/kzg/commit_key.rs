@@ -1,5 +1,4 @@
-use crate::{batch_inverse, g1_lincomb, polynomial::Polynomial, G1Point, RootsOfUnity, Scalar};
-
+use crate::{domain::Domain, polynomial::Polynomial, G1Point, Scalar};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
@@ -17,15 +16,16 @@ impl CommitKey {
     pub fn new(points: Vec<G1Point>) -> CommitKey {
         assert!(
             !points.is_empty(),
-            "cannot initialise `CommitKey` with no points"
+            "cannot initialize `CommitKey` with no points"
         );
         CommitKey { inner: points }
     }
     // Note: There is no commit method for CommitKey in monomial basis
     // as this is not used
-    pub fn into_lagrange(self) -> CommitKeyLagrange {
-        _ = self.inner;
-        todo!("add a method that converts the commit key from monomial to lagrange basis")
+    pub fn into_lagrange(self, domain: &Domain) -> CommitKeyLagrange {
+        CommitKeyLagrange {
+            inner: domain.ifft_g1(self.inner),
+        }
     }
 }
 
@@ -68,50 +68,82 @@ impl CommitKeyLagrange {
     pub fn max_degree(&self) -> usize {
         self.inner.len() - 1
     }
+}
 
-    /// Computes the quotient polynomial for a kzg proof
-    ///
-    /// The state being proved is p(z) = y
-    /// Where:
-    /// - `z` is the point being passed as input
-    pub(crate) fn compute_quotient(
-        &self,
-        poly: &Polynomial,
-        input_point: Scalar,
-        output_point: Scalar,
-        domain: &RootsOfUnity,
-    ) -> Polynomial {
-        #[cfg(not(feature = "rayon"))]
-        let roots_iter = domain.roots().iter();
-        #[cfg(feature = "rayon")]
-        let roots_iter = domain.roots().par_iter();
+// A multi-scalar multiplication
+pub fn g1_lincomb(points: &[G1Point], scalars: &[Scalar]) -> G1Point {
+    // TODO: We could use arkworks here and use their parallelilized multi
+    // exp instead
 
-        // Compute the denominator and store it in the quotient vector, to avoid re-allocation
-        let mut quotient: Vec<_> = roots_iter
-            .map(|domain_element| *domain_element - input_point)
+    // TODO: Spec says we should panic, but as a lib its better to return result
+    assert_eq!(points.len(), scalars.len());
+
+    let points_iter = points.into_iter();
+
+    let points: Vec<_> = points_iter
+        .map(|point| blstrs::G1Projective::from(point))
+        .collect();
+
+    // blst does not use multiple threads
+    // TODO: the internal lib seems to be converting back to Affine, so we need to
+    // TODO create our own version of this function
+    blstrs::G1Projective::multi_exp(&points, scalars).into()
+}
+
+#[cfg(test)]
+mod tests {
+    use ff::Field;
+    use group::prime::PrimeCurveAffine;
+
+    use crate::{
+        domain::Domain,
+        kzg::commit_key::{g1_lincomb, CommitKey},
+        G1Point, Scalar,
+    };
+
+    fn eval_coeff_poly(poly: &[Scalar], input_point: &Scalar) -> Scalar {
+        let mut result = Scalar::zero();
+        for (index, coeff) in poly.iter().enumerate() {
+            result += input_point.pow_vartime(&[index as u64]) * coeff;
+        }
+        result
+    }
+
+    #[test]
+    fn transform_srs() {
+        let degree = 16;
+
+        let domain = Domain::new(degree);
+
+        // f(x) -- These are the coefficients of the polynomial
+        let f_x_coeffs: Vec<_> = (0..degree as u64).into_iter().map(Scalar::from).collect();
+
+        // Evaluate f(x) over the domain -- To get the evaluation form of f(x)
+        let f_x_evaluations: Vec<_> = domain
+            .roots
+            .iter()
+            .map(|root| eval_coeff_poly(&f_x_coeffs, root))
             .collect();
-        batch_inverse(&mut quotient);
 
-        #[cfg(not(feature = "rayon"))]
-        let quotient_iter = quotient.iter_mut();
-        #[cfg(feature = "rayon")]
-        let quotient_iter = quotient.par_iter_mut();
+        let secret = Scalar::from(1234567u64);
+        let monomial_srs: Vec<G1Point> = (0..degree)
+            .map(|index| {
+                let secret_exp = secret.pow_vartime(&[index as u64]);
+                (G1Point::generator() * secret_exp).into()
+            })
+            .collect();
 
-        // Compute the numerator polynomial and multiply it by the quotient which holds the
-        // denominator
-        quotient_iter
-            .zip(&poly.evaluations)
-            .for_each(|(quotient_i, eval_i)| *quotient_i = (*eval_i - output_point) * *quotient_i);
+        // Commit to f(x) in monomial form
+        let expected_commitment = g1_lincomb(&monomial_srs, &f_x_coeffs);
 
-        // Simple way to do this
-        // let domain_size = domain.len();
-        // let mut quotient = vec![Fr::zero(); domain_size];
-        // for i in 0..domain_size {
-        // let denominator = inverse(domain[i] - point);
-        //     quotient[i] = (poly.evaluations[i] - output) * denominator
-        // }
-        // quotient
+        // Commit to f(x) in lagrange form
+        let lagrange_srs = CommitKey {
+            inner: monomial_srs,
+        }
+        .into_lagrange(&domain)
+        .inner;
+        let got_commitment = g1_lincomb(&lagrange_srs, &f_x_evaluations);
 
-        Polynomial::new(quotient)
+        assert_eq!(expected_commitment, got_commitment)
     }
 }
