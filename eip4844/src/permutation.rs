@@ -1,4 +1,4 @@
-use crypto::{PublicParameters, RootsOfUnity};
+use crypto::{Domain, PublicParameters};
 
 /// There are some structures which need to be permuted.
 /// We implement this trait on such structures
@@ -11,13 +11,16 @@ pub trait Permutable {
     fn permute(self) -> Self::PermutedType;
 }
 
-impl Permutable for RootsOfUnity {
-    type PermutedType = RootsOfUnity;
+impl Permutable for Domain {
+    type PermutedType = Domain;
     fn permute(self) -> Self::PermutedType {
-        let permutation = bit_reversal_permutation(&self.inner);
-        RootsOfUnity {
-            inner: permutation,
-            inverse_domain_size: self.inverse_domain_size,
+        let permuted_roots = bit_reversal_permutation(&self.roots);
+        Domain {
+            roots: permuted_roots,
+            domain_size: self.domain_size,
+            domain_size_inv: self.domain_size_inv,
+            generator: self.generator,
+            generator_inv: self.generator_inv,
         }
     }
 }
