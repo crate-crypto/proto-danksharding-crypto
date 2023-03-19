@@ -15,13 +15,7 @@ ff = "0.12.0"
 group = "0.12"
 pairing_lib = { version = "0.22", package = "pairing" }
 
-# Arkworks related dependencies
-# Arkworks is now being used for general helper methods
-ark-ff = { version = "0.3", default-features = false }
-ark-poly = { version = "0.3", default-features = false }
-ark-bls12-381 = { version = "0.3", default-features = false, features = [
-    "curve",
-] }
+
 # This is needed for test_utils, but we want to use test_utils 
 # in the benchmarks, so it cannot be gated behind a cfg(test)
 rand = "0.8.3"
@@ -35,5 +29,4 @@ name = "benchmark"
 harness = false
 
 [features]
-insecure = []
-parallel = ["ark-ff/parallel", "ark-poly/parallel", "ark-ff/asm", "rayon"]
+parallel = ["rayon"]
