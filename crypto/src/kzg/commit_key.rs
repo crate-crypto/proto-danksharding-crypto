@@ -51,15 +51,6 @@ impl CommitKeyLagrange {
         g1_lincomb(&self.inner, &polynomial.evaluations)
     }
 
-    /// Commit to multiple polynomials in lagrange form
-    pub fn commit_multiple(&self, polynomials: &[Polynomial]) -> Vec<G1Point> {
-        #[cfg(not(feature = "rayon"))]
-        let polys_iter = polynomials.into_iter();
-        #[cfg(feature = "rayon")]
-        let polys_iter = polynomials.into_par_iter();
-
-        polys_iter.map(|poly| self.commit(poly)).collect()
-    }
     /// Returns the maximum degree polynomial that one can commit to
     /// Since we are in lagrange basis, it is the number of points minus one
     ///
@@ -72,7 +63,7 @@ impl CommitKeyLagrange {
 
 // A multi-scalar multiplication
 pub fn g1_lincomb(points: &[G1Point], scalars: &[Scalar]) -> G1Point {
-    // TODO: We could use arkworks here and use their parallelilized multi
+    // TODO: We could use arkworks here and use their parallelized multi-
     // exp instead
 
     // TODO: Spec says we should panic, but as a lib its better to return result
