@@ -2,7 +2,8 @@ pub mod constants;
 mod permutation;
 
 use crypto::{
-    Domain, G1Point, Polynomial, PublicParameters, G1_POINT_SERIALIZED_SIZE, SCALAR_SERIALIZED_SIZE,
+    Domain, G1Point, Polynomial, PublicParameters, G1_POINT_SERIALIZED_SIZE,
+    G2_POINT_SERIALIZED_SIZE, SCALAR_SERIALIZED_SIZE,
 };
 use permutation::Permutable;
 
@@ -15,9 +16,10 @@ use crypto::Scalar;
 
 pub type BlobBytes = Vec<u8>;
 pub type SerializedScalar = [u8; SCALAR_SERIALIZED_SIZE];
-pub type SerializedPoint = [u8; G1_POINT_SERIALIZED_SIZE];
-pub type KZGCommitmentBytes = SerializedPoint;
-pub type KZGProofBytes = SerializedPoint;
+pub type SerializedG1Point = [u8; G1_POINT_SERIALIZED_SIZE];
+pub type SerializedG2Point = [u8; G2_POINT_SERIALIZED_SIZE];
+pub type KZGCommitmentBytes = SerializedG1Point;
+pub type KZGProofBytes = SerializedG1Point;
 
 impl Context {
     pub fn new_insecure() -> Self {
@@ -35,6 +37,17 @@ impl Context {
     }
 
     pub fn from_json_str(_trusted_setup_json: String) -> Self {
+        todo!("The trusted setup has not been completed. For testing use the `insecure` method")
+    }
+
+    // setup_g1: G1 elements in monomial form
+    // setup_g1_lagrange: G1 elements in lagrange form
+    // setup_g2: G2 elements, For 4844, we only need 2 of these elements
+    pub fn from_hex(
+        setup_g1: Vec<SerializedG1Point>,
+        setup_g1_lagrange: Vec<SerializedG1Point>,
+        setup_g2: Vec<SerializedG2Point>,
+    ) -> Option<Self> {
         todo!("The trusted setup has not been completed. For testing use the `insecure` method")
     }
 
@@ -90,7 +103,7 @@ fn blob_bytes_to_polynomial(bytes: Vec<u8>) -> Option<Polynomial> {
 
     Polynomial::new(polynomial_inner).into()
 }
-fn bytes_to_point(point_bytes: &SerializedPoint) -> Option<G1Point> {
+fn bytes_to_point(point_bytes: &SerializedG1Point) -> Option<G1Point> {
     let ct_point = G1Point::from_compressed(&point_bytes);
     bool::from(ct_point.is_some()).then(|| ct_point.unwrap())
 }
